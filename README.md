@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/parthshah27/codeinsight-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/parthshah27/codeinsight-pro/actions)
 
-🔗 **Live demo:** {https://codeinsight-pro.your-domain.com}
+<!-- 🔗 **Live demo:** {https://codeinsight-pro.your-domain.com} -->
 📖 **API docs:** {https://codeinsight-pro.your-domain.com/api/docs}
 
 ![CodeInsight Pro demo](docs/demo.gif)
