@@ -77,8 +77,9 @@ export default function ReviewForm() {
       );
       setResult(response.data);
     } catch (err) {
-        console.error(err);
-      setResult({ error: "Failed to fetch review. Try again later." });
+      console.error(err);
+      const message = err.response?.data?.error?.message || "Failed to fetch review. Try again later.";
+      setResult({ error: message });
     } finally {
       setLoading(false);
     }

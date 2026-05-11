@@ -1,167 +1,185 @@
 # CodeInsight Pro
 
-> A secure, enterprise-ready code review assistant that analyzes pull requests and code snippets to provide structured technical feedback on readability, maintainability, performance, and security.
+> A deployable code review assistant that analyzes pasted code or pull request diffs and returns structured feedback for security, reliability, readability, and maintainability.
 
 [![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?logo=node.js&logoColor=white)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=111827)](https://react.dev)
+[![CI](https://github.com/parthshah27/codeinsight-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/parthshah27/codeinsight-pro/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/parthshah27/codeinsight-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/parthshah27/codeinsight-pro/actions)
+[![Live Demo](https://img.shields.io/badge/Live-Render-46E3B7)](https://codeinsight-pro.onrender.com/)
 
-🔗 **Live demo:** https://codeinsight-pro.onrender.com/
-📖 **API docs:** https://codeinsight-pro.onrender.com/api/docs
-🧾 **OpenAPI JSON:** https://codeinsight-pro.onrender.com/api/openapi.json
+Live demo: https://codeinsight-pro.onrender.com/
 
-![CodeInsight Pro demo](docs/demo.gif)
+Swagger docs: https://codeinsight-pro.onrender.com/api/docs
 
----
+OpenAPI JSON: https://codeinsight-pro.onrender.com/api/openapi.json
 
-## Why this exists
+Health check: https://codeinsight-pro.onrender.com/api/health
 
-Code review is one of the highest-leverage activities in software engineering, but reviewers are often time-pressured and inconsistent. CodeInsight Pro acts as a "first-pass reviewer" that catches the obvious issues — security smells, readability problems, missing error handling — so human reviewers can focus on architecture and intent.
+## Screenshots
 
-It's built with privacy-first defaults: code never leaves your infrastructure unless you explicitly opt in to a managed LLM provider, and all submissions are scrubbed of secrets before analysis.
+![CodeInsight Pro app screenshot](docs/screenshot-app.svg)
 
-## Features
+![Swagger API docs screenshot](docs/screenshot-swagger.svg)
 
-- **Snippet analysis** — paste any code block and receive structured feedback across four dimensions: readability, maintainability, performance, security.
-- **Pull request analysis** — point it at a GitHub PR URL and get a consolidated review covering all changed files.
-- **Severity scoring** — every finding is tagged `critical | major | minor | info` so you can triage at a glance.
-- **Secret scanning** — incoming code is scanned for API keys, tokens, and credentials before being sent to any LLM.
-- **Pluggable LLM backend** — switch between mock mode, local Ollama, or OpenAI via config.
-- **Rate-limited API** — token-bucket limiter prevents abuse and controls LLM cost.
+## Why This Project Looks Production-Ready
+
+CodeInsight Pro is built as a portfolio-friendly system rather than a hardcoded API-key demo. The hosted deployment runs safely in deterministic mock mode, while local developers can switch to Ollama or OpenAI through environment configuration.
+
+- Public demo works without paid credentials.
+- Local Ollama mode supports private, no-cloud inference.
+- OpenAI mode is available for higher-quality hosted reviews.
+- API responses are structured and frontend-friendly.
+- Swagger UI and OpenAPI JSON are served by the backend.
+- Health checks, request IDs, JSON logging, validation, and consistent error responses are included.
+- Render deployment is configured with `render.yaml`.
+- GitHub Actions checks frontend build and backend syntax.
 
 ## Architecture
 
-```
-┌──────────────┐      ┌─────────────────┐      ┌──────────────┐
-│   Client /   │─────▶│  Express API    │─────▶│  Secret      │
-│   GitHub PR  │      │  (Node + TS)    │      │  Scanner     │
-└──────────────┘      └────────┬────────┘      └──────┬───────┘
-                               │                      │
-                               ▼                      ▼
-                      ┌─────────────────┐    ┌──────────────┐
-                      │  Rate Limiter   │    │  LLM Adapter │
-                      │  (Redis)        │    │  (OpenAI/etc)│
-                      └─────────────────┘    └──────┬───────┘
-                                                    │
-                                                    ▼
-                                           ┌──────────────┐
-                                           │  Structured  │
-                                           │  Findings    │
-                                           └──────────────┘
-```
+![CodeInsight Pro architecture](docs/architecture.svg)
 
-**Key design decisions**
+Request flow:
 
-- Stateless API behind a Redis-backed rate limiter so it scales horizontally.
-- LLM calls are wrapped in an adapter interface — swapping providers is a one-file change.
-- Findings are returned as structured JSON, not free text, so the response is machine-consumable (a future GitHub bot can comment directly on PR lines).
+1. The React frontend submits code to `POST /api/review`.
+2. Express validates the request, attaches a request ID, and logs the request lifecycle.
+3. The provider adapter routes the prompt to `mock`, `ollama`, or `openai`.
+4. The API returns structured findings or provider-generated review text.
+5. The frontend renders summaries, severity badges, and suggestions.
 
-## Tech stack
+## Provider Modes
 
-| Layer       | Technology                          |
-| ----------- | ----------------------------------- |
-| Runtime     | Node.js 20, TypeScript              |
-| Framework   | Express                             |
-| LLM         | Mock / Ollama / OpenAI (pluggable)  |
-| Cache & rate limit | Redis                        |
-| Validation  | Zod                                 |
-| Testing     | Jest, Supertest                     |
-| Container   | Docker, docker-compose              |
-| CI/CD       | GitHub Actions                      |
-| Deployment  | Render / Fly.io                     |
+| Mode | Best for | Requires API key | Notes |
+| --- | --- | --- | --- |
+| `mock` | Public portfolio deployment | No | Deterministic heuristic findings. Used on Render. |
+| `ollama` | Local private development | No | Requires local Ollama server on `localhost:11434`. |
+| `openai` | Higher-quality hosted reviews | Yes | Requires `OPENAI_API_KEY`. |
 
-## Quick start
+Backend `.env` example:
 
 ```bash
-# 1. Clone and install
-git clone https://github.com/parthshah27/codeinsight-pro.git
-cd codeinsight-pro
-npm install
-
-# 2. Configure the backend
-cd backend
-cp .env.example .env
-# Default is AI_PROVIDER=mock, so no API key is required.
-
-# 3. Run with Docker (recommended — brings up Redis too)
-docker-compose up
-
-# Or run locally (requires Redis on localhost:6379)
-npm run dev
+AI_PROVIDER=mock
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=deepseek-coder
+# OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-Backend starts on `http://localhost:5000`.
+## Features
 
-## API usage
+- Snippet and diff review from a browser UI.
+- Mock review engine for no-key public demos.
+- Local Ollama integration for private developer workflows.
+- Optional OpenAI provider path.
+- Severity labels: `critical`, `major`, `minor`, `info`.
+- Swagger UI at `/api/docs`.
+- OpenAPI JSON at `/api/openapi.json`.
+- Health endpoint at `/api/health`.
+- Request logging with request IDs.
+- Consistent JSON error format.
+- Single-service Render deployment.
 
-**Analyze a snippet**
+## API Quick Demo
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/analyze \
+curl -X POST https://codeinsight-pro.onrender.com/api/review \
   -H "Content-Type: application/json" \
   -d '{
-    "language": "javascript",
-    "code": "function getUser(id) { return db.query(`SELECT * FROM users WHERE id=${id}`) }"
+    "title": "Fix user lookup",
+    "description": "Review this database access change.",
+    "codeSnippet": "function getUser(id) { return db.query(`SELECT * FROM users WHERE id=${id}`) }"
   }'
 ```
 
-**Response**
+Example response:
 
 ```json
 {
-  "summary": "1 critical issue, 1 minor issue",
-  "findings": [
-    {
-      "severity": "critical",
-      "category": "security",
-      "line": 1,
-      "message": "SQL injection: user input is interpolated directly into query.",
-      "suggestion": "Use parameterized queries: db.query('SELECT * FROM users WHERE id=?', [id])"
-    },
-    {
-      "severity": "minor",
-      "category": "maintainability",
-      "line": 1,
-      "message": "Function lacks input validation and error handling.",
-      "suggestion": "Validate that id is a number before querying."
-    }
-  ]
+  "review": {
+    "mode": "mock",
+    "summary": "1 critical, 0 major, 0 minor",
+    "findings": [
+      {
+        "severity": "critical",
+        "category": "security",
+        "message": "Potential SQL query construction via concatenation detected.",
+        "suggestion": "Use parameterized queries/prepared statements instead of concatenating user input."
+      }
+    ]
+  }
 }
 ```
 
-Full schema in [`docs/api.md`](docs/api.md) or the live Swagger UI.
+More examples are in [docs/demo-snippets.md](docs/demo-snippets.md).
 
-## Testing
+Full API reference is in [docs/api.md](docs/api.md).
+
+## Health, Logging, and Errors
+
+Health endpoint:
 
 ```bash
-npm test               # unit + integration tests
-npm run test:coverage  # with coverage report
+curl https://codeinsight-pro.onrender.com/api/health
 ```
 
-Currently {XX}% line coverage. Coverage thresholds are enforced in CI.
+Typical health response:
 
+```json
+{
+  "ok": true,
+  "provider": "mock",
+  "uptimeSeconds": 120,
+  "startedAt": "2026-05-11T12:00:00.000Z"
+}
+```
 
-## Deployment
+Every request receives an `x-request-id` response header and is logged as a JSON event with method, path, status, and duration.
 
-For a public portfolio showcase, deploy the included single Render web service. It builds the React frontend, starts the Express backend, and serves everything from one URL with `AI_PROVIDER=mock`.
+Error format:
 
-See [`DEPLOYMENT.md`](DEPLOYMENT.md) for exact Render steps.
+```json
+{
+  "error": {
+    "code": "INVALID_CODE_SNIPPET",
+    "message": "codeSnippet is required and must be a non-empty string.",
+    "requestId": "lxi7rs-abc123"
+  }
+}
+```
 
-The repo includes a production `Dockerfile` and a GitHub Actions workflow that:
+## Local Development
 
-1. Lints and type-checks
-2. Runs the test suite
-3. Builds and pushes a Docker image to GHCR
-4. Triggers a deploy to Render on `main`
+Install frontend dependencies:
 
-See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+```bash
+cd frontend
+npm install
+npm start
+```
 
-### Provider modes
+Install backend dependencies:
 
-Set `AI_PROVIDER=mock` in the backend environment to skip LLM calls and return a deterministic heuristic review. This is the recommended public deployment mode when no paid LLM credentials are available.
+```bash
+cd backend
+npm install
+npm start
+```
 
-Set `AI_PROVIDER=ollama` for local development with a local model. Install Ollama, start it with `ollama serve`, pull a model such as `ollama pull deepseek-coder`, then keep:
+Local URLs:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:5000`
+- API docs: `http://localhost:5000/api/docs`
+
+## Local Ollama Mode
+
+Install Ollama and pull a model:
+
+```bash
+ollama serve
+ollama pull deepseek-coder
+```
+
+Set backend environment:
 
 ```bash
 AI_PROVIDER=ollama
@@ -169,33 +187,55 @@ OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=deepseek-coder
 ```
 
-Ollama mode does not use an API key.
+Ollama mode does not need signup, billing, or cloud API keys.
 
-Set `AI_PROVIDER=openai` only when you want hosted model calls:
+## Deployment
+
+The included `render.yaml` deploys the app as one Render web service:
 
 ```bash
-AI_PROVIDER=openai
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4.1-mini
+cd frontend && npm ci && npm run build && cd ../backend && npm ci
+cd backend && npm start
 ```
 
+Express serves the production React build and API from the same domain, so there is no hosted frontend/backend URL mismatch.
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step Render instructions.
+
+## CI/CD
+
+GitHub Actions runs on pushes and pull requests:
+
+- install frontend dependencies
+- build the React app
+- install backend dependencies
+- run `node --check backend/server.js`
+
+Workflow: [.github/workflows/ci.yml](.github/workflows/ci.yml)
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 18, Axios |
+| Backend | Node.js 20, Express |
+| API docs | OpenAPI JSON, Swagger UI |
+| Providers | Mock, Ollama, OpenAI |
+| Hosting | Render |
+| CI | GitHub Actions |
 
 ## Roadmap
 
-- [ ] GitHub App that posts review comments directly on PR lines
-- [ ] VS Code extension for in-editor analysis
-- [x] Self-hosted model support (Ollama)
-- [ ] Per-repo configuration (severity thresholds, ignored rules)
-- [ ] Web dashboard for team-wide trends
-
-## Contributing
-
-Issues and PRs are welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines.
+- GitHub PR URL ingestion.
+- GitHub App that comments on pull requests.
+- Per-repo severity rules.
+- Authentication for team dashboards.
+- Historical review analytics.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT. See [LICENSE](LICENSE).
 
-## About the author
+## Author
 
-Built by [Parth Shah](https://github.com/parthshah27) — backend developer focused on Node.js, AWS, and scalable systems. Open to freelance and full-time opportunities. Reach me at [pshah947795@gmail.com](mailto:pshah947795@gmail.com) or on [LinkedIn](https://linkedin.com/in/parth-r-shah).
+Built by [Parth Shah](https://github.com/parthshah27), backend developer focused on Node.js, AWS, and scalable systems.

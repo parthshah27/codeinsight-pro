@@ -44,6 +44,8 @@ frontend/build/
 frontend/build-check/
 frontend/build-render-check/
 frontend/build-ui-check/
+frontend/build-complete-check/
+frontend/build-complete-check-2/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/

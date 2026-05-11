@@ -13,13 +13,60 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json());
 
 const AI_PROVIDER = String(process.env.AI_PROVIDER || "mock").toLowerCase();
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "deepseek-coder";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+const startedAt = new Date().toISOString();
 
+function createRequestId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function log(level, message, meta = {}) {
+  console[level](
+    JSON.stringify({
+      level,
+      message,
+      timestamp: new Date().toISOString(),
+      ...meta
+    })
+  );
+}
+
+function sendError(res, status, code, message, details) {
+  return res.status(status).json({
+    error: {
+      code,
+      message,
+      details,
+      requestId: res.locals.requestId
+    }
+  });
+}
+
+app.use((req, res, next) => {
+  const started = Date.now();
+  const requestId = req.get("x-request-id") || createRequestId();
+
+  res.locals.requestId = requestId;
+  res.setHeader("x-request-id", requestId);
+
+  res.on("finish", () => {
+    log("info", "request completed", {
+      requestId,
+      method: req.method,
+      path: req.originalUrl,
+      status: res.statusCode,
+      durationMs: Date.now() - started
+    });
+  });
+
+  next();
+});
+
+app.use(bodyParser.json({ limit: "1mb" }));
 
 function heuristicDemoReview({ title, description, codeSnippet }) {
   const code = String(codeSnippet || "");
@@ -223,6 +270,8 @@ app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
     provider: AI_PROVIDER,
+    uptimeSeconds: Math.round(process.uptime()),
+    startedAt,
     ollamaBaseUrl: AI_PROVIDER === "ollama" ? OLLAMA_BASE_URL : undefined,
     model: AI_PROVIDER === "ollama" ? OLLAMA_MODEL : AI_PROVIDER === "openai" ? OPENAI_MODEL : undefined
   });
@@ -235,13 +284,36 @@ const apiSpec = {
     version: "1.0.0",
     description: "Code review assistant API with mock, Ollama, and OpenAI provider modes."
   },
+  servers: [
+    {
+      url: "https://codeinsight-pro.onrender.com",
+      description: "Live Render deployment"
+    },
+    {
+      url: "http://localhost:5000",
+      description: "Local development"
+    }
+  ],
   paths: {
     "/api/health": {
       get: {
         summary: "Check API health and active provider",
         responses: {
           200: {
-            description: "Current API status"
+            description: "Current API status",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    ok: { type: "boolean", example: true },
+                    provider: { type: "string", example: "mock" },
+                    uptimeSeconds: { type: "number", example: 120 },
+                    startedAt: { type: "string", example: "2026-05-11T12:00:00.000Z" }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -280,7 +352,38 @@ const apiSpec = {
         },
         responses: {
           200: {
-            description: "Review feedback"
+            description: "Review feedback",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    review: {
+                      type: "object",
+                      properties: {
+                        mode: { type: "string", example: "mock" },
+                        summary: { type: "string", example: "1 critical, 0 major, 0 minor" },
+                        findings: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              severity: { type: "string", example: "critical" },
+                              category: { type: "string", example: "security" },
+                              message: { type: "string" },
+                              suggestion: { type: "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: {
+            description: "Invalid request"
           },
           500: {
             description: "Review generation failed"
@@ -302,84 +405,22 @@ app.get("/api/docs", (req, res) => {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>CodeInsight Pro API Docs</title>
-    <style>
-      body {
-        background: #f6f8fa;
-        color: #111827;
-        font-family: Arial, sans-serif;
-        margin: 0;
-      }
-
-      main {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        margin: 2rem auto;
-        max-width: 920px;
-        padding: 2rem;
-        width: min(920px, calc(100% - 2rem));
-      }
-
-      h1,
-      h2 {
-        margin-top: 0;
-      }
-
-      code,
-      pre {
-        background: #f3f4f6;
-        border-radius: 8px;
-        font-family: Consolas, monospace;
-      }
-
-      code {
-        padding: 0.15rem 0.35rem;
-      }
-
-      pre {
-        overflow-x: auto;
-        padding: 1rem;
-      }
-
-      .endpoint {
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        margin-top: 1rem;
-        padding: 1rem;
-      }
-
-      .method {
-        color: #1d4ed8;
-        font-weight: 700;
-      }
-    </style>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
   </head>
   <body>
-    <main>
-      <h1>CodeInsight Pro API Docs</h1>
-      <p>Active provider: <code>${AI_PROVIDER}</code></p>
-
-      <section class="endpoint">
-        <h2><span class="method">GET</span> /api/health</h2>
-        <p>Returns API status and active provider configuration.</p>
-      </section>
-
-      <section class="endpoint">
-        <h2><span class="method">POST</span> /api/review</h2>
-        <p>Reviews a code snippet or pull request diff.</p>
-        <pre><code>curl -X POST ${req.protocol}://${req.get("host")}/api/review \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "title": "Fix user lookup",
-    "codeSnippet": "function getUser(id) { return db.query(\\\`SELECT * FROM users WHERE id=\\\${id}\\\`) }"
-  }'</code></pre>
-      </section>
-
-      <section class="endpoint">
-        <h2><span class="method">GET</span> /api/openapi.json</h2>
-        <p>Returns the machine-readable OpenAPI-style API summary.</p>
-      </section>
-    </main>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+    <script>
+      window.onload = () => {
+        window.ui = SwaggerUIBundle({
+          url: "/api/openapi.json",
+          dom_id: "#swagger-ui",
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis],
+          layout: "BaseLayout"
+        });
+      };
+    </script>
   </body>
 </html>`);
 });
@@ -389,15 +430,54 @@ app.post("/api/review", async (req, res) => {
   try {
     const { title, description, codeSnippet, userPrompt } = req.body;
 
+    if (!codeSnippet || typeof codeSnippet !== "string" || codeSnippet.trim().length === 0) {
+      return sendError(
+        res,
+        400,
+        "INVALID_CODE_SNIPPET",
+        "codeSnippet is required and must be a non-empty string."
+      );
+    }
+
     const review = await generateReview({ title, description, codeSnippet, userPrompt });
     res.json({ review });
   } catch (error) {
-    console.error("AI Review Error:", error);
-    res.status(500).json({
-      error: "Something went wrong while generating review feedback.",
-      details: error.message,
+    log("error", "review generation failed", {
+      requestId: res.locals.requestId,
+      provider: AI_PROVIDER,
+      error: error.message
     });
+    sendError(
+      res,
+      500,
+      "REVIEW_GENERATION_FAILED",
+      "Something went wrong while generating review feedback.",
+      error.message
+    );
   }
+});
+
+app.use("/api", (req, res) => {
+  sendError(res, 404, "API_ROUTE_NOT_FOUND", `No API route found for ${req.method} ${req.originalUrl}.`);
+});
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  log("error", "request failed", {
+    requestId: res.locals.requestId,
+    method: req.method,
+    path: req.originalUrl,
+    error: err.message
+  });
+
+  if (err.type === "entity.parse.failed") {
+    return sendError(res, 400, "INVALID_JSON", "Request body must be valid JSON.");
+  }
+
+  return sendError(res, 500, "INTERNAL_SERVER_ERROR", "Unexpected server error.", err.message);
 });
 
 const frontendBuildPath = path.resolve(__dirname, "../frontend/build");

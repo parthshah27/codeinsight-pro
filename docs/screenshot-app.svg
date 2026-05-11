@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">CodeInsight Pro app screenshot</title>
+  <desc id="desc">Mock screenshot of the hosted CodeInsight Pro UI with review form and structured findings.</desc>
+  <rect width="1200" height="760" fill="#f6f8fa"/>
+  <rect x="110" y="50" width="980" height="660" rx="14" fill="#ffffff" stroke="#e5e7eb"/>
+  <text x="150" y="115" fill="#111827" font-family="Arial, sans-serif" font-size="38" font-weight="700">CodeInsight Pro</text>
+  <text x="150" y="150" fill="#4b5563" font-family="Arial, sans-serif" font-size="18">Automated Code Review Assistant</text>
+  <text x="150" y="205" fill="#111827" font-family="Arial, sans-serif" font-size="16" font-weight="700">Title</text>
+  <rect x="150" y="220" width="900" height="48" rx="8" fill="#ffffff" stroke="#d1d5db"/>
+  <text x="170" y="250" fill="#6b7280" font-family="Arial, sans-serif" font-size="15">Fix user lookup query</text>
+  <text x="150" y="310" fill="#111827" font-family="Arial, sans-serif" font-size="16" font-weight="700">Code Changes / Diff</text>
+  <rect x="150" y="325" width="900" height="120" rx="8" fill="#ffffff" stroke="#d1d5db"/>
+  <text x="170" y="360" fill="#111827" font-family="Consolas, monospace" font-size="15">function getUser(id) {</text>
+  <text x="190" y="388" fill="#111827" font-family="Consolas, monospace" font-size="15">return db.query(`SELECT * FROM users WHERE id=${id}`)</text>
+  <text x="170" y="416" fill="#111827" font-family="Consolas, monospace" font-size="15">}</text>
+  <rect x="150" y="470" width="900" height="50" rx="8" fill="#2563eb"/>
+  <text x="555" y="503" fill="#ffffff" font-family="Arial, sans-serif" font-size="17" font-weight="700">Review Code</text>
+  <rect x="150" y="555" width="900" height="110" rx="8" fill="#f9fafb" stroke="#e5e7eb"/>
+  <text x="180" y="595" fill="#111827" font-family="Arial, sans-serif" font-size="24" font-weight="700">Review Result</text>
+  <rect x="945" y="575" width="70" height="28" rx="14" fill="#e0f2fe" stroke="#bae6fd"/>
+  <text x="963" y="594" fill="#075985" font-family="Arial, sans-serif" font-size="12" font-weight="700">MOCK</text>
+  <text x="180" y="625" fill="#374151" font-family="Arial, sans-serif" font-size="16">1 critical, 0 major, 0 minor</text>
+  <rect x="180" y="642" width="90" height="26" rx="13" fill="#fee2e2"/>
+  <text x="198" y="660" fill="#991b1b" font-family="Arial, sans-serif" font-size="12" font-weight="700">CRITICAL</text>
+  <text x="292" y="660" fill="#111827" font-family="Arial, sans-serif" font-size="15">Potential SQL query construction via concatenation detected.</text>
+</svg>
