@@ -228,6 +228,162 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+const apiSpec = {
+  openapi: "3.0.0",
+  info: {
+    title: "CodeInsight Pro API",
+    version: "1.0.0",
+    description: "Code review assistant API with mock, Ollama, and OpenAI provider modes."
+  },
+  paths: {
+    "/api/health": {
+      get: {
+        summary: "Check API health and active provider",
+        responses: {
+          200: {
+            description: "Current API status"
+          }
+        }
+      }
+    },
+    "/api/review": {
+      post: {
+        summary: "Review a code snippet or pull request diff",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["codeSnippet"],
+                properties: {
+                  title: {
+                    type: "string",
+                    example: "Fix user lookup"
+                  },
+                  description: {
+                    type: "string",
+                    example: "Adds endpoint logic for fetching users."
+                  },
+                  codeSnippet: {
+                    type: "string",
+                    example: "function getUser(id) { return db.query(`SELECT * FROM users WHERE id=${id}`) }"
+                  },
+                  userPrompt: {
+                    type: "string",
+                    example: "Review this code for security and reliability issues."
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Review feedback"
+          },
+          500: {
+            description: "Review generation failed"
+          }
+        }
+      }
+    }
+  }
+};
+
+app.get("/api/openapi.json", (req, res) => {
+  res.json(apiSpec);
+});
+
+app.get("/api/docs", (req, res) => {
+  res.type("html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CodeInsight Pro API Docs</title>
+    <style>
+      body {
+        background: #f6f8fa;
+        color: #111827;
+        font-family: Arial, sans-serif;
+        margin: 0;
+      }
+
+      main {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        margin: 2rem auto;
+        max-width: 920px;
+        padding: 2rem;
+        width: min(920px, calc(100% - 2rem));
+      }
+
+      h1,
+      h2 {
+        margin-top: 0;
+      }
+
+      code,
+      pre {
+        background: #f3f4f6;
+        border-radius: 8px;
+        font-family: Consolas, monospace;
+      }
+
+      code {
+        padding: 0.15rem 0.35rem;
+      }
+
+      pre {
+        overflow-x: auto;
+        padding: 1rem;
+      }
+
+      .endpoint {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-top: 1rem;
+        padding: 1rem;
+      }
+
+      .method {
+        color: #1d4ed8;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>CodeInsight Pro API Docs</h1>
+      <p>Active provider: <code>${AI_PROVIDER}</code></p>
+
+      <section class="endpoint">
+        <h2><span class="method">GET</span> /api/health</h2>
+        <p>Returns API status and active provider configuration.</p>
+      </section>
+
+      <section class="endpoint">
+        <h2><span class="method">POST</span> /api/review</h2>
+        <p>Reviews a code snippet or pull request diff.</p>
+        <pre><code>curl -X POST ${req.protocol}://${req.get("host")}/api/review \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "title": "Fix user lookup",
+    "codeSnippet": "function getUser(id) { return db.query(\\\`SELECT * FROM users WHERE id=\\\${id}\\\`) }"
+  }'</code></pre>
+      </section>
+
+      <section class="endpoint">
+        <h2><span class="method">GET</span> /api/openapi.json</h2>
+        <p>Returns the machine-readable OpenAPI-style API summary.</p>
+      </section>
+    </main>
+  </body>
+</html>`);
+});
+
 
 app.post("/api/review", async (req, res) => {
   try {
