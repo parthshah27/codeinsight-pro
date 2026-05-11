@@ -26,7 +26,7 @@ It's built with privacy-first defaults: code never leaves your infrastructure un
 - **Pull request analysis** — point it at a GitHub PR URL and get a consolidated review covering all changed files.
 - **Severity scoring** — every finding is tagged `critical | major | minor | info` so you can triage at a glance.
 - **Secret scanning** — incoming code is scanned for API keys, tokens, and credentials before being sent to any LLM.
-- **Pluggable LLM backend** — switch between OpenAI, Anthropic, or a self-hosted model via config.
+- **Pluggable LLM backend** — switch between mock mode, local Ollama, or OpenAI via config.
 - **Rate-limited API** — token-bucket limiter prevents abuse and controls LLM cost.
 
 ## Architecture
@@ -62,7 +62,7 @@ It's built with privacy-first defaults: code never leaves your infrastructure un
 | ----------- | ----------------------------------- |
 | Runtime     | Node.js 20, TypeScript              |
 | Framework   | Express                             |
-| LLM         | OpenAI / Anthropic (pluggable)      |
+| LLM         | Mock / Ollama / OpenAI (pluggable)  |
 | Cache & rate limit | Redis                        |
 | Validation  | Zod                                 |
 | Testing     | Jest, Supertest                     |
@@ -78,9 +78,10 @@ git clone https://github.com/parthshah27/codeinsight-pro.git
 cd codeinsight-pro
 npm install
 
-# 2. Configure
+# 2. Configure the backend
+cd backend
 cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY (or ANTHROPIC_API_KEY)
+# Default is AI_PROVIDER=mock, so no API key is required.
 
 # 3. Run with Docker (recommended — brings up Redis too)
 docker-compose up
@@ -89,7 +90,7 @@ docker-compose up
 npm run dev
 ```
 
-Server starts on `http://localhost:3000`. API docs available at `/api/docs`.
+Backend starts on `http://localhost:5000`.
 
 ## API usage
 
@@ -142,6 +143,10 @@ Currently {XX}% line coverage. Coverage thresholds are enforced in CI.
 
 ## Deployment
 
+For a public portfolio showcase, deploy the included single Render web service. It builds the React frontend, starts the Express backend, and serves everything from one URL with `AI_PROVIDER=mock`.
+
+See [`DEPLOYMENT.md`](DEPLOYMENT.md) for exact Render steps.
+
 The repo includes a production `Dockerfile` and a GitHub Actions workflow that:
 
 1. Lints and type-checks
@@ -151,16 +156,34 @@ The repo includes a production `Dockerfile` and a GitHub Actions workflow that:
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-### Demo mode (no API keys required)
+### Provider modes
 
-Set `DEMO_MODE=true` in the backend environment to skip the LLM call and return a deterministic heuristic review. This is useful for Vercel/preview deployments when no paid LLM credentials are available.
+Set `AI_PROVIDER=mock` in the backend environment to skip LLM calls and return a deterministic heuristic review. This is the recommended public deployment mode when no paid LLM credentials are available.
+
+Set `AI_PROVIDER=ollama` for local development with a local model. Install Ollama, start it with `ollama serve`, pull a model such as `ollama pull deepseek-coder`, then keep:
+
+```bash
+AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=deepseek-coder
+```
+
+Ollama mode does not use an API key.
+
+Set `AI_PROVIDER=openai` only when you want hosted model calls:
+
+```bash
+AI_PROVIDER=openai
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4.1-mini
+```
 
 
 ## Roadmap
 
 - [ ] GitHub App that posts review comments directly on PR lines
 - [ ] VS Code extension for in-editor analysis
-- [ ] Self-hosted model support (Ollama)
+- [x] Self-hosted model support (Ollama)
 - [ ] Per-repo configuration (severity thresholds, ignored rules)
 - [ ] Web dashboard for team-wide trends
 

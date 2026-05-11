@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: codeinsight-pro
+    env: node
+    plan: free
+    buildCommand: cd frontend && npm ci && npm run build && cd ../backend && npm ci
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: AI_PROVIDER
+        value: mock

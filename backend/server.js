@@ -1,17 +1,25 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import Puter from "puter-sdk";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Initialize Puter instance (only used when not in demo mode)
-const puter = new Puter();
+const AI_PROVIDER = String(process.env.AI_PROVIDER || "mock").toLowerCase();
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "deepseek-coder";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+
 
 function heuristicDemoReview({ title, description, codeSnippet }) {
   const code = String(codeSnippet || "");
@@ -97,7 +105,7 @@ function heuristicDemoReview({ title, description, codeSnippet }) {
   const summary = `${counts.critical ? `${counts.critical} critical` : "0 critical"}, ${counts.major ? `${counts.major} major` : "0 major"}, ${counts.minor ? `${counts.minor} minor` : "0 minor"}`;
 
   return {
-    mode: "demo",
+    mode: "mock",
     title: title || undefined,
     description: description || undefined,
     summary,
@@ -105,30 +113,128 @@ function heuristicDemoReview({ title, description, codeSnippet }) {
   };
 }
 
+function buildReviewPrompt({ title, description, codeChanges, userPrompt }) {
+  if (userPrompt) {
+    return userPrompt;
+  }
+
+  return `You are a senior code reviewer. Review the following code changes or PR diff and provide:
+- Code quality feedback
+- Potential bugs or improvements
+- Security issues
+- Suggested best practices
+
+Return concise, actionable feedback.
+
+${title ? `Title: ${title}` : ""}
+${description ? `Description: ${description}` : ""}
+Code changes:
+${codeChanges}`;
+}
+
+async function reviewWithOllama(prompt) {
+  const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: OLLAMA_MODEL,
+      prompt,
+      stream: false
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Ollama request failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  return {
+    mode: "ollama",
+    provider: "ollama",
+    model: OLLAMA_MODEL,
+    summary: "AI-generated review from local Ollama model.",
+    content: data.response || ""
+  };
+}
+
+async function reviewWithOpenAI(prompt) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is required when AI_PROVIDER=openai.");
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI request failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  return {
+    mode: "openai",
+    provider: "openai",
+    model: OPENAI_MODEL,
+    summary: "AI-generated review from OpenAI.",
+    content: data.choices?.[0]?.message?.content || ""
+  };
+}
+
+async function generateReview({ title, description, codeSnippet, userPrompt }) {
+  const codeChanges = codeSnippet || "";
+
+  if (AI_PROVIDER === "mock") {
+    return heuristicDemoReview({ title, description, codeSnippet: codeChanges });
+  }
+
+  const finalPrompt = buildReviewPrompt({ title, description, codeChanges, userPrompt });
+
+  if (AI_PROVIDER === "ollama") {
+    return reviewWithOllama(finalPrompt);
+  }
+
+  if (AI_PROVIDER === "openai") {
+    return reviewWithOpenAI(finalPrompt);
+  }
+
+  throw new Error(`Unsupported AI_PROVIDER "${AI_PROVIDER}". Use mock, ollama, or openai.`);
+}
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    provider: AI_PROVIDER,
+    ollamaBaseUrl: AI_PROVIDER === "ollama" ? OLLAMA_BASE_URL : undefined,
+    model: AI_PROVIDER === "ollama" ? OLLAMA_MODEL : AI_PROVIDER === "openai" ? OPENAI_MODEL : undefined
+  });
+});
+
 
 app.post("/api/review", async (req, res) => {
   try {
     const { title, description, codeSnippet, userPrompt } = req.body;
 
-    const demoMode = String(process.env.DEMO_MODE || "").toLowerCase() === "true";
-
-    // Use codeSnippet as codeChanges
-    const codeChanges = codeSnippet;
-
-    if (demoMode) {
-      const review = heuristicDemoReview({ title, description, codeSnippet: codeChanges });
-      return res.json({ review });
-    }
-
-    let finalPrompt = userPrompt
-      ? userPrompt
-      : `You are a senior code reviewer. Review the following code changes or PR diff and provide:\r\n        - Code quality feedback\r\n        - Potential bugs or improvements\r\n        - Suggested best practices\r\n        ${title ? `Title: ${title}` : ''}\r\n        ${description ? `Description: ${description}` : ''}\r\n        Code changes:\r\n        ${codeChanges}\r\n      `;
-
-    const response = await puter.ai.chat(finalPrompt, {
-      model: "gpt-5-nano", // free model
-    });
-    console.log("AI Review Response:", response);
-    res.json({ review: response });
+    const review = await generateReview({ title, description, codeSnippet, userPrompt });
+    res.json({ review });
   } catch (error) {
     console.error("AI Review Error:", error);
     res.status(500).json({
@@ -138,6 +244,18 @@ app.post("/api/review", async (req, res) => {
   }
 });
 
+const frontendBuildPath = path.resolve(__dirname, "../frontend/build");
+
+if (fs.existsSync(frontendBuildPath)) {
+  app.use(express.static(frontendBuildPath));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(frontendBuildPath, "index.html"));
+  });
+}
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`AI provider: ${AI_PROVIDER}`);
+});
