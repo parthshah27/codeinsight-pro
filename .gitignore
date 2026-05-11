@@ -43,6 +43,7 @@ jspm_packages/
 frontend/build/
 frontend/build-check/
 frontend/build-render-check/
+frontend/build-ui-check/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/

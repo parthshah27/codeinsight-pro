@@ -6,6 +6,55 @@ const API_BASE_URL = configuredApiBaseUrl.includes("your-deployed-backend-url")
   ? ""
   : configuredApiBaseUrl;
 
+function ReviewResult({ result }) {
+  if (result.error) {
+    return (
+      <div className="result result-error">
+        <h3>Review Result</h3>
+        <p>{result.error}</p>
+      </div>
+    );
+  }
+
+  const review = result.review || result;
+  const findings = Array.isArray(review.findings) ? review.findings : [];
+
+  return (
+    <div className="result">
+      <div className="result-header">
+        <div>
+          <h3>Review Result</h3>
+          {review.summary && <p className="result-summary">{review.summary}</p>}
+        </div>
+        {review.mode && <span className="provider-badge">{review.mode}</span>}
+      </div>
+
+      {review.content && <p className="ai-review-text">{review.content}</p>}
+
+      {findings.length > 0 && (
+        <div className="findings-list">
+          {findings.map((finding, index) => (
+            <article className="finding-card" key={`${finding.message}-${index}`}>
+              <div className="finding-meta">
+                <span className={`severity severity-${finding.severity || "info"}`}>
+                  {finding.severity || "info"}
+                </span>
+                {finding.category && <span className="category">{finding.category}</span>}
+              </div>
+              <p className="finding-message">{finding.message}</p>
+              {finding.suggestion && (
+                <p className="finding-suggestion">
+                  <strong>Suggestion:</strong> {finding.suggestion}
+                </p>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ReviewForm() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -69,10 +118,7 @@ export default function ReviewForm() {
       </form>
 
       {result && (
-        <div className="result">
-          <h3>Review Result</h3>
-          <pre>{JSON.stringify(result, null, 2)}</pre>
-        </div>
+        <ReviewResult result={result} />
       )}
     </div>
   );

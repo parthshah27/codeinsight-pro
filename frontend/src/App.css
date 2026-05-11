@@ -1,10 +1,11 @@
 body {
   background: #f6f8fa;
   font-family: "Inter", sans-serif;
+  margin: 0;
 }
 
 .app-container {
-  max-width: 800px;
+  width: min(960px, calc(100% - 2rem));
   margin: 2rem auto;
   background: white;
   padding: 2rem;
@@ -50,6 +51,135 @@ button:hover {
   margin-top: 2rem;
   background: #f9fafb;
   border-radius: 8px;
-  padding: 1rem;
+  padding: 1.5rem;
   font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.result-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.result h3 {
+  margin: 0;
+}
+
+.result-summary {
+  color: #374151;
+  margin: 0.35rem 0 0;
+}
+
+.provider-badge {
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 999px;
+  color: #075985;
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  text-transform: uppercase;
+}
+
+.ai-review-text {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  line-height: 1.55;
+  margin: 0;
+  padding: 1rem;
+  white-space: pre-wrap;
+}
+
+.findings-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.finding-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.finding-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.severity,
+.category {
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.55rem;
+  text-transform: uppercase;
+}
+
+.severity-critical {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.severity-major {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.severity-minor {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.severity-info {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.category {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.finding-message,
+.finding-suggestion {
+  line-height: 1.5;
+  margin: 0;
+}
+
+.finding-suggestion {
+  color: #4b5563;
+  margin-top: 0.65rem;
+}
+
+.result-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+@media (max-width: 640px) {
+  .app-container {
+    margin: 0;
+    min-height: 100vh;
+    padding: 1rem;
+    width: auto;
+  }
+
+  .result-header {
+    display: block;
+  }
+
+  .provider-badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+  }
 }
